@@ -1,0 +1,22 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Test SSH connection
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.VPS3569400IP }}
+          username: deploy
+          key: ${{ secrets.VPS3569400 }}
+          script: |
+            echo "SSH_OK"
+            hostname
+            pwd
