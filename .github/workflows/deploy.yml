@@ -10,13 +10,30 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Test SSH connection
+      - name: Deploy to VPS
         uses: appleboy/ssh-action@v1.2.2
         with:
           host: ${{ secrets.VPS3569400IP }}
           username: deploy
           key: ${{ secrets.VPS3569400 }}
           script: |
-            echo "SSH_OK"
-            hostname
-            pwd
+            set -e
+
+            cd ~/clients
+
+            echo "Updating code..."
+            git fetch origin main
+            git reset --hard origin/main
+
+            echo "Checking Docker Compose..."
+            docker compose config --quiet
+
+            echo "Building and starting application..."
+            docker compose up -d --build php nginx
+
+            echo "Checking webhook..."
+            curl -fsS -o /dev/null \
+              -w "HTTP %{http_code}\n" \
+              https://clients.sharonoff.com/telegram/webhook
+
+            echo "DEPLOY_OK"
