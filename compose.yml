@@ -1,0 +1,92 @@
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: clients-nginx
+    restart: unless-stopped
+
+    volumes:
+      - ./app:/var/www/html:ro
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+
+    networks:
+      - proxy
+      - clients-internal
+
+  php:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: clients-php
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?serverVersion=18&charset=utf8"
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      MESSENGER_TRANSPORT_DSN: "amqp://clients_app:${RABBITMQ_PASSWORD}@rabbitmq:5672/%2f/messages"
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET}
+
+    volumes:
+      - ./app:/var/www/html
+
+    networks:
+      - clients-internal
+
+  postgres:
+    image: postgres:18-alpine
+    container_name: clients-postgres
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
+    volumes:
+      - postgres-data:/var/lib/postgresql
+
+    networks:
+      - clients-internal
+
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    container_name: clients-rabbitmq
+    restart: unless-stopped
+
+    networks:
+      - clients-internal
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: clients-worker
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?serverVersion=18&charset=utf8"
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      MESSENGER_TRANSPORT_DSN: "amqp://clients_app:${RABBITMQ_PASSWORD}@rabbitmq:5672/%2f/messages"
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET}
+
+    volumes:
+      - ./app:/var/www/html
+
+    networks:
+      - clients-internal
+
+networks:
+  proxy:
+    external: true
+
+  clients-internal:
+    external: true
+volumes:
+  postgres-data:
