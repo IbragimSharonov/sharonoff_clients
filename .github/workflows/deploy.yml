@@ -31,16 +31,25 @@ jobs:
             echo "Building and starting application..."
             docker compose up -d --build php nginx
 
+            echo "Installing Composer dependencies..."
+            docker compose exec -T php composer install \
+              --no-interaction \
+              --prefer-dist \
+              --optimize-autoloader
+
+            echo "Running database migrations..."
+            docker compose exec -T php php bin/console doctrine:migrations:migrate --no-interaction
+
             echo "Checking application..."
 
             HTTP_CODE=$(curl -sS -o /dev/null \
               -w "%{http_code}" \
               https://clients.sharonoff.com/telegram/webhook)
-            
+
             if [ "$HTTP_CODE" != "405" ]; then
               echo "Unexpected HTTP status: $HTTP_CODE"
               exit 1
             fi
-            
+
             echo "Application is reachable (HTTP 405 expected for GET webhook)"
             echo "DEPLOY_OK"

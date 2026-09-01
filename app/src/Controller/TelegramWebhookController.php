@@ -2,12 +2,25 @@
 
 namespace App\Controller;
 
+use App\Repository\UserRepository;
+use Symfony\Component\DependencyInjection\Attribute\Target;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 final class TelegramWebhookController
 {
+    public function __construct(
+        private readonly UserRepository                         $userRepository,
+        #[Target('telegramClient')] private HttpClientInterface $telegramClient,
+    ) {
+    }
+
+    /**
+     * @throws TransportExceptionInterface
+     */
     #[Route('/telegram/webhook', name: 'app_telegram_webhook', methods: ['POST'])]
     public function __invoke(Request $request): JsonResponse
     {
@@ -26,22 +39,26 @@ final class TelegramWebhookController
         $message = $update['message'] ?? null;
         $chatId = $message['chat']['id'] ?? null;
         $text = $message['text'] ?? null;
+        $telegramId = $update['message']['from']['id'] ?? null;
 
-        if ($chatId && $text === '/start') {
-            $token = getenv('TELEGRAM_BOT_TOKEN');
+        $user = $telegramId ? $this->userRepository->findOneBy(['telegramId' => $telegramId]) : null;
 
-            $ch = curl_init("https://api.telegram.org/bot{$token}/sendMessage");
-
-            curl_setopt_array($ch, [
-                CURLOPT_POST => true,
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_POSTFIELDS => [
+        if (!$user) {
+            $this->telegramClient->request('POST', '/sendMessage', [
+                'json' => [
                     'chat_id' => $chatId,
-                    'text' => 'Привет! Бот подключён к clients.sharonoff.com.',
+                    'text' => 'Кто вы?',
+                    'reply_markup' => [
+                        'keyboard' => [
+                            [['text' => '👤 Я клиент']],
+                            [['text' => '💅 Я мастер']],
+                            [['text' => '🏢 Я владелец бизнеса']],
+                        ],
+                        'resize_keyboard' => true,
+                        'one_time_keyboard' => true,
+                    ],
                 ],
             ]);
-
-            curl_exec($ch);
         }
 
         return new JsonResponse(['ok' => true]);

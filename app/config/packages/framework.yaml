@@ -8,6 +8,12 @@ framework:
     #esi: true
     #fragments: true
 
+    http_client:
+        scoped_clients:
+            telegramClient:
+                base_uri: '%env(TELEGRAM_API_URL)%'
+                timeout: 2
+
 when@test:
     framework:
         test: true
