@@ -44,10 +44,10 @@ final class TelegramWebhookController
         $user = $telegramId ? $this->userRepository->findOneBy(['telegramId' => $telegramId]) : null;
 
         if (!$user) {
-            $this->telegramClient->request('POST', '/sendMessage', [
+            $response = $this->telegramClient->request('POST', 'sendMessage', [
                 'json' => [
                     'chat_id' => $chatId,
-                    'text' => 'Кто вы?',
+                    'text' => 'Кто вы??',
                     'reply_markup' => [
                         'keyboard' => [
                             [['text' => '👤 Я клиент']],
@@ -59,6 +59,9 @@ final class TelegramWebhookController
                     ],
                 ],
             ]);
+
+            $response->getContent(false);
+            error_log('Telegram API URL: ' . getenv('TELEGRAM_API_URL'));
         }
 
         return new JsonResponse(['ok' => true]);
